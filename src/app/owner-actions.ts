@@ -5,6 +5,7 @@ import {adminClient,requireDeveloper,sessionClient} from '@/lib/supabase';
 import type {ActionResult,Role} from '@/lib/types';
 import {entityKinds} from '@/lib/types';
 import {academicFields} from '@/lib/owner/academic-config';
+import {sendPushEvent,withPushStatus} from '@/lib/push';
 
 const val=(fd:FormData,key:string)=>String(fd.get(key)??'').trim();
 const ok=(message:string):ActionResult=>({ok:true,message});
@@ -67,7 +68,9 @@ export async function saveOwnerEntityAction(_:ActionResult,fd:FormData):Promise<
    data[field]=['targetCount','startVerse','endVerse','fluency','tajwid','makhraj','score'].includes(field)?z.coerce.number().int().parse(text):field==='dueAt'?new Date(text+'+07:00').toISOString():text;
   }
   const {error}=await (await sessionClient()).rpc('owner_entity_action',{p_action:'save',p_entity:{id,tenant_id,kind,data}});
-  if(error)throw new Error(error.message);refresh();revalidatePath('/akademik/'+kind);return ok('Data '+kind+' berhasil disimpan.');
+  if(error)throw new Error(error.message);refresh();revalidatePath('/akademik/'+kind);
+  const pushWarning=['announcement','assignment','submission','memorization'].includes(kind)?await sendPushEvent({type:'entity',record_id:id}):null;
+  return ok(withPushStatus('Data '+kind+' berhasil disimpan.',pushWarning));
  }catch(error){return fail(error)}
 }
 export async function deleteOwnerEntityAction(_:ActionResult,fd:FormData):Promise<ActionResult>{
@@ -82,7 +85,9 @@ export async function saveOwnerInvoiceAction(_:ActionResult,fd:FormData):Promise
  await requireDeveloper();try{
   const invoice=invoiceSchema.parse({id:val(fd,'id')||crypto.randomUUID(),tenant_id:val(fd,'tenant_id'),student_id:val(fd,'student_id'),title:val(fd,'title'),period:val(fd,'period'),amount:val(fd,'amount'),due_date:val(fd,'due_date'),allow_partial:val(fd,'allow_partial')==='true',archived:val(fd,'archived')==='true'});
   const {error}=await (await sessionClient()).rpc('owner_invoice_action',{p_action:'save',p_data:invoice});
-  if(error)throw new Error(error.message);revalidatePath('/spp');return ok('Tagihan tersimpan.');
+  if(error)throw new Error(error.message);revalidatePath('/spp');
+  const pushWarning=await sendPushEvent({type:'spp_invoice',record_id:invoice.id});
+  return ok(withPushStatus('Tagihan tersimpan.',pushWarning));
  }catch(error){return fail(error)}
 }
 export async function deleteOwnerInvoiceAction(_:ActionResult,fd:FormData):Promise<ActionResult>{
@@ -114,7 +119,9 @@ export async function reviewOwnerPaymentAction(_:ActionResult,fd:FormData):Promi
   const note=z.string().trim().min(4).max(500).parse(val(fd,'note'));const bank=val(fd,'bank_reference');
   if(status==='matched'&&!bank)throw new Error('Referensi mutasi bank wajib diisi');
   const {error}=await (await sessionClient()).rpc('owner_payment_reconcile',{p_id:id,p_status:status,p_note:note,p_bank_reference:bank});
-  if(error)throw new Error(error.message);revalidatePath('/spp');return ok('Review pembayaran dicatat dalam audit.');
+  if(error)throw new Error(error.message);revalidatePath('/spp');
+  const pushWarning=await sendPushEvent({type:'spp_payment',record_id:id});
+  return ok(withPushStatus('Review pembayaran dicatat dalam audit.',pushWarning));
  }catch(error){return fail(error)}
 }
 

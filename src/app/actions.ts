@@ -5,6 +5,7 @@ import {z} from 'zod';
 import {adminClient,requireDeveloper,sessionClient,validateUUID} from '@/lib/supabase';
 import {endOfJakartaDay} from '@/lib/format';
 import type {ActionResult,Profile,Tenant} from '@/lib/types';
+import {sendPushEvent,withPushStatus} from '@/lib/push';
 
 const read=(fd:FormData,key:string)=>String(fd.get(key)||'').trim();
 const fail=(error:unknown):ActionResult=>({ok:false,message:error instanceof Error?error.message:'Operasi gagal. Periksa data lalu coba lagi.'});
@@ -180,7 +181,13 @@ export async function setMobileAccessAction(_:ActionResult,form:FormData):Promis
   });
   if(error)throw new Error(error.message);
   revalidatePath('/dashboard');revalidatePath('/kontrol-aplikasi');
-  return success(enabled?'Akses manual telah diaktifkan. Jadwal maintenance yang masih berlaku tetap diterapkan.':'Akses mobile dinonaktifkan.');
+  const base=enabled?'Akses manual telah diaktifkan. Jadwal maintenance yang masih berlaku tetap diterapkan.':'Akses mobile dinonaktifkan.';
+  const pushWarning=await sendPushEvent({type:'platform',platform:{
+   title:enabled?'Aplikasi kembali online':'Aplikasi sementara tidak tersedia',
+   body:enabled?'Layanan E-Learning telah kembali online. Silakan buka aplikasi untuk melanjutkan aktivitas.':message,
+   route:'/notifications',category:'maintenance',dedupe_key:`platform-access:${enabled}:${crypto.randomUUID()}`
+  }});
+  return success(withPushStatus(base,pushWarning));
  }catch(error){return fail(error);}
 }
 
@@ -210,7 +217,15 @@ export async function scheduleMaintenanceAction(_:ActionResult,form:FormData):Pr
   });
   if(error)throw new Error(error.message);
   revalidatePath('/kontrol-aplikasi');revalidatePath('/dashboard');
-  return success(op==='clear'?'Jadwal maintenance dibatalkan.':'Jadwal maintenance disimpan.');
+  const fmt=(iso:string|null)=>iso?new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}).format(new Date(iso)):'';
+  const base=op==='clear'?'Jadwal maintenance dibatalkan.':'Jadwal maintenance disimpan.';
+  const pushWarning=await sendPushEvent({type:'platform',platform:{
+   title:op==='clear'?'Jadwal maintenance dibatalkan':'Maintenance terjadwal',
+   body:op==='clear'?'Jadwal maintenance sebelumnya telah dibatalkan.':`${message} Mulai ${fmt(start)}${end?` sampai ${fmt(end)}`:''}.`,
+   route:'/notifications',category:'maintenance',
+   dedupe_key:op==='clear'?`maintenance-clear:${crypto.randomUUID()}`:`maintenance:${start}`
+  }});
+  return success(withPushStatus(base,pushWarning));
  }catch(error){return fail(error);}
 }
 
@@ -285,6 +300,11 @@ export async function saveRuntimePolicyAction(_:ActionResult,form:FormData):Prom
   });
   if(error)throw new Error(error.message);
   revalidatePath('/kontrol-aplikasi');revalidatePath('/dashboard');
-  return success('Kebijakan runtime aplikasi berhasil disimpan.');
+  const pushWarning=await sendPushEvent({type:'platform',platform:{
+   title:parsed.forceUpdate?'Pembaruan aplikasi diperlukan':parsed.readOnly?'Mode hanya-baca aktif':'Kebijakan aplikasi diperbarui',
+   body:parsed.forceUpdate?parsed.message:parsed.readOnly?'Aplikasi sementara hanya dapat digunakan untuk melihat data.':'Pengaturan akses aplikasi telah diperbarui oleh pengelola platform.',
+   route:'/notifications',category:'system',dedupe_key:`runtime-policy:${parsed.minimum}:${parsed.latest}:${parsed.forceUpdate}:${parsed.readOnly}:${crypto.randomUUID()}`
+  }});
+  return success(withPushStatus('Kebijakan runtime aplikasi berhasil disimpan.',pushWarning));
  }catch(error){return fail(error);}
 }
