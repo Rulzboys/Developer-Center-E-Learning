@@ -286,24 +286,37 @@ export async function saveRuntimePolicyAction(_:ActionResult,form:FormData):Prom
   const parsed=z.object({
    readOnly:z.boolean(),minimum:z.string().regex(/^[0-9]+(\.[0-9]+){0,3}$/),
    latest:z.string().regex(/^[0-9]+(\.[0-9]+){0,3}$/),forceUpdate:z.boolean(),
-   message:z.string().min(1).max(500),
+   message:z.string().min(1).max(500),updateUrl:z.string().max(1000),
   }).parse({
    readOnly:read(form,'read_only')==='true',minimum:read(form,'minimum_app_version'),
    latest:read(form,'latest_app_version'),forceUpdate:read(form,'force_update')==='true',
-   message:read(form,'update_message'),
+   message:read(form,'update_message'),updateUrl:read(form,'update_url').trim(),
   });
+  if(parsed.updateUrl){
+   let url:URL;
+   try{url=new URL(parsed.updateUrl);}catch{throw new Error('Link aplikasi versi terbaru tidak valid.');}
+   if(!['http:','https:'].includes(url.protocol))throw new Error('Link aplikasi harus menggunakan http atau https.');
+  }
+  if(parsed.forceUpdate&&!parsed.updateUrl)throw new Error('Link aplikasi versi terbaru wajib diisi saat pembaruan diwajibkan.');
+
+  const admin=adminClient();
+  const {data:current}=await admin.from('platform_settings').select('latest_app_version,force_update').eq('id',true).maybeSingle();
   const db=await sessionClient();
   const {error}=await db.rpc('set_platform_runtime_policy',{
    p_read_only:parsed.readOnly,p_minimum_app_version:parsed.minimum,
    p_latest_app_version:parsed.latest,p_force_update:parsed.forceUpdate,
-   p_update_message:parsed.message,
+   p_update_message:parsed.message,p_update_url:parsed.updateUrl,
   });
   if(error)throw new Error(error.message);
   revalidatePath('/kontrol-aplikasi');revalidatePath('/dashboard');
+
+  const versionChanged=current?.latest_app_version!==parsed.latest;
+  const forceChanged=current?.force_update!==parsed.forceUpdate;
+  const updateNotice=versionChanged||forceChanged||parsed.forceUpdate;
   const pushWarning=await sendPushEvent({type:'platform',platform:{
-   title:parsed.forceUpdate?'Pembaruan aplikasi diperlukan':parsed.readOnly?'Mode hanya-baca aktif':'Kebijakan aplikasi diperbarui',
-   body:parsed.forceUpdate?parsed.message:parsed.readOnly?'Aplikasi sementara hanya dapat digunakan untuk melihat data.':'Pengaturan akses aplikasi telah diperbarui oleh pengelola platform.',
-   route:'/notifications',category:'system',dedupe_key:`runtime-policy:${parsed.minimum}:${parsed.latest}:${parsed.forceUpdate}:${parsed.readOnly}:${crypto.randomUUID()}`
+   title:updateNotice?(parsed.forceUpdate?'Pembaruan aplikasi wajib':`Versi ${parsed.latest} tersedia`):parsed.readOnly?'Mode hanya-baca aktif':'Kebijakan aplikasi diperbarui',
+   body:updateNotice?parsed.message:parsed.readOnly?'Aplikasi sementara hanya dapat digunakan untuk melihat data.':'Pengaturan akses aplikasi telah diperbarui oleh pengelola platform.',
+   route:'/notifications',category:updateNotice?'app_update':'system',dedupe_key:`runtime-policy:${parsed.minimum}:${parsed.latest}:${parsed.forceUpdate}:${parsed.readOnly}:${crypto.randomUUID()}`
   }});
   return success(withPushStatus('Kebijakan runtime aplikasi berhasil disimpan.',pushWarning));
  }catch(error){return fail(error);}

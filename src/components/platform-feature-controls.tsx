@@ -84,7 +84,7 @@ export default function PlatformFeatureControls({features,flags,tenants}:{featur
 
  return <section className="surface feature-control-surface">
   <div className="surface-heading feature-heading">
-   <div><h2><SlidersHorizontal size={20}/> Kontrol fitur mobile</h2><p>Aktif/nonaktifkan fungsi aplikasi secara global, per instansi, per role, atau kombinasi keduanya.</p></div>
+   <div><h2><SlidersHorizontal size={20}/> Kontrol fitur mobile</h2><p>Aktif/nonaktifkan fungsi aplikasi secara global, per instansi, per role, atau kombinasi keduanya. Fitur yang OFF disembunyikan dari menu Flutter dan tetap ditolak bila route dibuka langsung.</p></div>
    <span className="feature-count">{features.length} fitur</span>
   </div>
   <div className="feature-scope-bar">
