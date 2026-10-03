@@ -1,0 +1,10 @@
+import Link from 'next/link';
+import {PageHead,FilterBar,Empty,Pill,Pager} from '@/components/ui';
+import {TenantEditButton} from '@/components/forms';
+import {allTenants} from '@/lib/queries';
+import {requireDeveloper,safeSearch} from '@/lib/supabase';
+export default async function AcademicYears({searchParams}:{searchParams:Promise<{q?:string;page?:string}>}){
+ await requireDeveloper();const sp=await searchParams;const q=safeSearch(sp.q).toLowerCase();const page=Math.max(1,Math.min(10000,Number(sp.page)||1));const tenants=(await allTenants()).filter(t=>!q||t.name.toLowerCase().includes(q)||t.academic_year.toLowerCase().includes(q));const visible=tenants.slice((page-1)*20,page*20);
+ return <><PageHead overline="INSTANSI / AKADEMIK" title="Tahun Akademik & Semester" description="Periode akademik merupakan pengaturan setiap instansi di tabel tenants, bukan tabel akademik baru."/>
+ <section className="surface"><div className="surface-heading"><div><h2>Periode instansi</h2><p>Pembaruan tahun ajaran dan semester berlaku untuk instansi yang dipilih.</p></div><span className="surface-count">{tenants.length} instansi</span></div><div className="surface-pad"><FilterBar action="/tahun-akademik" query={q} placeholder="Cari nama instansi / tahun ajaran"/></div><div className="table-scroll"><table className="data-table"><thead><tr><th>INSTANSI</th><th>TAHUN AKADEMIK</th><th>SEMESTER</th><th>STATUS</th><th className="right">PENGATURAN</th></tr></thead><tbody>{visible.map(t=><tr key={t.id}><td><Link href={'/instansi/'+t.id}><b>{t.name}</b></Link><span className="subline">{t.code}</span></td><td>{t.academic_year}</td><td>{t.semester}</td><td><Pill text={t.status==='active'?'Aktif':'Ditangguhkan'} tone={t.status==='active'?'success':'warning'}/></td><td><div className="table-actions"><TenantEditButton tenant={t}/></div></td></tr>)}</tbody></table>{!tenants.length&&<Empty text="Tidak ada instansi sesuai pencarian."/>}</div><Pager base="/tahun-akademik" page={page} count={tenants.length} filters={{q}}/></section></>;
+}

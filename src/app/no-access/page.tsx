@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function NoAccess(){return <main className="center-page"><section className="login-card"><div className="brand-icon">!</div><h1>Akses ditolak</h1><p>Website ini khusus untuk akun Developer yang aktif. Akun admin instansi, guru, dan siswa tetap menggunakan aplikasi Flutter.</p><Link className="button primary" href="/login">Kembali ke login</Link></section></main>}
