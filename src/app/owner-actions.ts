@@ -24,7 +24,7 @@ export async function saveOwnerProfileAction(_:ActionResult,fd:FormData):Promise
    tenant_id:val(fd,'tenant_id')||null,class_id:val(fd,'class_id')||null,number:val(fd,'number'),phone:val(fd,'phone'),active:val(fd,'active')==='true'});
   const db=adminClient();let targetId=id;
   if(!targetId){
-   const password=String(fd.get('password')??'');if(password.length<12||password.length>72)throw new Error('Kata sandi awal harus 12–72 karakter.');
+   const password=String(fd.get('password')??'');if(password.length<8||password.length>72)throw new Error('Kata sandi awal harus 8–72 karakter.');
    const {data,error}=await db.auth.admin.createUser({email:p.email,password,email_confirm:true});
    if(error||!data.user)throw new Error(error?.message||'Gagal membuat akun Authentication.');
    targetId=data.user.id;createdId=targetId;

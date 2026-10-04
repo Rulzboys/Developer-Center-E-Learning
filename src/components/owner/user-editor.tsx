@@ -25,7 +25,7 @@ export function UserEditor({user,tenants,options,defaultRole='student',defaultTe
  <label className="field">Nomor induk / identitas<input name="number" maxLength={80} defaultValue={user?.number||''}/></label>
  <label className="field">Telepon<input name="phone" maxLength={40} defaultValue={user?.phone||''}/></label>
  <label className="field">Status<select name="active" defaultValue={user?.active===false?'false':'true'}><option value="true">Aktif</option><option value="false">Nonaktif</option></select></label>
- {!user&&<label className="field wide">Password awal<input required name="password" type="password" autoComplete="new-password" minLength={12} maxLength={72}/><span className="helper">Minimal 12 karakter. Berikan hanya melalui saluran aman.</span></label>}
+ {!user&&<label className="field wide">Password awal<input required name="password" type="password" autoComplete="new-password" minLength={8} maxLength={72}/><span className="helper">Minimal 8 karakter. Berikan hanya melalui saluran aman.</span></label>}
  {optionsError&&<div role="alert" className="form-alert error wide">{optionsError}</div>}
  {state.message&&<div role="status" className={'form-alert wide '+(state.ok?'ok':'error')}>{state.message}</div>}
  <div className="modal-footer wide"><button type="button" className="button secondary" onClick={()=>setOpen(false)}>Batal</button><button type="submit" disabled={pending||!!optionsError||(role!=='developer'&&!tenant)} className="button primary">{pending?'Menyimpan…':'Simpan akun'}</button></div>

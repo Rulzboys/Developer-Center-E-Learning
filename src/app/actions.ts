@@ -93,7 +93,7 @@ export async function saveManagerAction(_:ActionResult,fd:FormData):Promise<Acti
   let createdAuthId:string|null=null;
   if(creation){
    const password=String(fd.get('password')||'');
-   if(password.length<12||password.length>72)throw new Error('Password awal harus 12–72 karakter.');
+   if(password.length<8||password.length>72)throw new Error('Password awal harus 8–72 karakter.');
    const {data:created,error:authError}=await server.auth.admin.createUser({email:input.email,password,email_confirm:true});
    if(authError||!created.user)throw new Error(authError?.message||'Tidak dapat membuat akun Auth.');
    createdAuthId=created.user.id;
@@ -140,7 +140,7 @@ export async function saveProfileAction(_:ActionResult,fd:FormData):Promise<Acti
 export async function savePasswordAction(_:ActionResult,fd:FormData):Promise<ActionResult>{
  await requireDeveloper();
  const password=String(fd.get('password')||''),confirm=String(fd.get('confirm')||'');
- if(password.length<12)return {ok:false,message:'Password baru minimal 12 karakter.'};
+ if(password.length<8)return {ok:false,message:'Password baru minimal 8 karakter.'};
  if(password!==confirm)return {ok:false,message:'Konfirmasi password tidak sama.'};
  try{
   const db=await sessionClient();const {error}=await db.auth.updateUser({password});
