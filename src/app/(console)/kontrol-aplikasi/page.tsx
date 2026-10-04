@@ -9,11 +9,12 @@ type Row={
  mobile_enabled:boolean;maintenance_message:string;maintenance_starts_at:string|null;maintenance_ends_at:string|null;
  updated_at:string;updated_by:string|null;read_only?:boolean;minimum_app_version?:string;latest_app_version?:string;
  force_update?:boolean;update_message?:string;update_url?:string;
+ poster_enabled?:boolean;poster_url?:string|null;poster_title?:string;poster_message?:string;poster_updated_at?:string|null;
 };
 
 const actionLabels:Record<string,string>={
  manual:'Kontrol global',schedule:'Jadwal disimpan',clear_schedule:'Jadwal dibatalkan',maintenance_complete:'Maintenance selesai',runtime_policy:'Kebijakan runtime',
- feature_flag:'Fitur diubah',feature_flag_clear:'Override dihapus',
+ feature_flag:'Fitur diubah',feature_flag_clear:'Override dihapus',poster_update:'Poster dipublikasikan',poster_clear:'Poster dihapus',
 };
 
 export default async function ApplicationControl(){
@@ -57,13 +58,14 @@ export default async function ApplicationControl(){
    mobile_enabled:settings!.mobile_enabled,maintenance_message:settings!.maintenance_message,maintenance_starts_at:settings!.maintenance_starts_at,maintenance_ends_at:settings!.maintenance_ends_at,
    read_only:settings!.read_only??false,minimum_app_version:settings!.minimum_app_version??'1.0.0',latest_app_version:settings!.latest_app_version??'1.0.0',force_update:settings!.force_update??false,
    update_message:settings!.update_message??'Versi aplikasi yang Anda gunakan sudah terlalu lama. Silakan perbarui aplikasi.',update_url:settings!.update_url??'',
+   poster_enabled:settings!.poster_enabled??false,poster_url:settings!.poster_url??'',poster_title:settings!.poster_title??'',poster_message:settings!.poster_message??'',poster_updated_at:settings!.poster_updated_at??null,
   }} tenants={tenants}/>} 
   {v4Ready&&<PlatformFeatureControls features={features} flags={flags} tenants={tenants}/>} 
 
   <section className="surface control-audit"><div className="surface-heading"><div><h2><ScrollText size={20}/> Riwayat kontrol platform</h2><p>Perubahan status, jadwal, runtime policy, dan feature flag tercatat untuk audit.</p></div></div>
    {!configured?<p className="surface-pad">Riwayat tersedia setelah migration.</p>:!auditRes.data?.length?<p className="surface-pad">Belum ada perubahan status platform.</p>:<div className="table-scroll"><table className="data-table control-audit-table"><thead><tr><th className="col-time">WAKTU (WIB)</th><th className="col-action">AKSI</th><th className="col-actor">AKTOR</th><th>RINGKASAN</th></tr></thead><tbody>{auditRes.data.map((a)=>{
     const after=(a.after_data||{}) as Record<string,unknown>;
-    const summary=a.action==='feature_flag'?`${String(after.feature_key||'Fitur')} • ${String(after.scope_type||'scope')} • ${after.enabled===true?'Aktif':'Nonaktif'}`:a.action==='runtime_policy'?`Read only ${after.read_only===true?'aktif':'nonaktif'} • min ${String(after.minimum_app_version||'-')}`:a.action==='maintenance_complete'?'Waktu selesai tercapai • jadwal maintenance dibersihkan otomatis':typeof after.mobile_enabled==='boolean'?(after.mobile_enabled?'Akses global diizinkan':'Akses global dinonaktifkan'):'Konfigurasi diperbarui';
+    const summary=a.action==='feature_flag'?`${String(after.feature_key||'Fitur')} • ${String(after.scope_type||'scope')} • ${after.enabled===true?'Aktif':'Nonaktif'}`:a.action==='runtime_policy'?`Read only ${after.read_only===true?'aktif':'nonaktif'} • min ${String(after.minimum_app_version||'-')}`:a.action==='maintenance_complete'?'Waktu selesai tercapai • jadwal maintenance dibersihkan otomatis':a.action==='poster_update'?'Poster beranda dipublikasikan atau diperbarui':a.action==='poster_clear'?'Poster beranda dinonaktifkan':typeof after.mobile_enabled==='boolean'?(after.mobile_enabled?'Akses global diizinkan':'Akses global dinonaktifkan'):'Konfigurasi diperbarui';
     return <tr key={a.id}><td className="col-time">{datetime(a.created_at)}</td><td className="col-action"><Pill text={actionLabels[a.action]||a.action} tone="info"/></td><td className="col-actor">{(a.actor_id&&names[a.actor_id])||'Developer'}</td><td>{summary}</td></tr>;
    })}</tbody></table></div>}
   </section>

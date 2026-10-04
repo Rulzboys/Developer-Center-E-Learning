@@ -1,13 +1,14 @@
 'use client';
 import {useActionState,useEffect,useState} from 'react';
-import {AlertTriangle,CalendarClock,Download,ExternalLink,LockKeyhole,MessageSquareText,Power,Save,Send,ShieldAlert,Trash2,Users} from 'lucide-react';
-import {saveRuntimePolicyAction,scheduleMaintenanceAction,sendPlatformMessageAction,setMobileAccessAction} from '@/app/actions';
+import {AlertTriangle,CalendarClock,Download,ExternalLink,ImagePlus,LockKeyhole,MessageSquareText,Power,Save,Send,ShieldAlert,Trash2,Users} from 'lucide-react';
+import {savePlatformPosterAction,saveRuntimePolicyAction,scheduleMaintenanceAction,sendPlatformMessageAction,setMobileAccessAction} from '@/app/actions';
 import {initialAction} from '@/lib/types';
 import {useRouter} from 'next/navigation';
 
 type Setting={
  mobile_enabled:boolean;maintenance_message:string;maintenance_starts_at:string|null;maintenance_ends_at:string|null;
  read_only:boolean;minimum_app_version:string;latest_app_version:string;force_update:boolean;update_message:string;update_url:string;
+ poster_enabled:boolean;poster_url:string;poster_title:string;poster_message:string;poster_updated_at:string|null;
 };
 type TenantOption={id:string;name:string;code:string};
 function jakartaLocal(value:string|null){if(!value)return '';return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(value)).replace(' ','T');}
@@ -24,9 +25,10 @@ export default function PlatformControls({settings,tenants}:{settings:Setting;te
  const [scheduleState,submitSchedule,schedulePending]=useActionState(scheduleMaintenanceAction,initialAction);
  const [runtimeState,submitRuntime,runtimePending]=useActionState(saveRuntimePolicyAction,initialAction);
  const [messageState,submitMessage,messagePending]=useActionState(sendPlatformMessageAction,initialAction);
+ const [posterState,submitPoster,posterPending]=useActionState(savePlatformPosterAction,initialAction);
  const nextEnabled=!settings.mobile_enabled;
  const expected=nextEnabled?'AKTIFKAN APLIKASI':'MATIKAN APLIKASI';
- useEffect(()=>{if(state.ok||scheduleState.ok||runtimeState.ok||messageState.ok){setConfirmation('');router.refresh();}},[state,scheduleState,runtimeState,messageState,router]);
+ useEffect(()=>{if(state.ok||scheduleState.ok||runtimeState.ok||messageState.ok||posterState.ok){setConfirmation('');router.refresh();}},[state,scheduleState,runtimeState,messageState,posterState,router]);
  useEffect(()=>{const id=window.setInterval(()=>router.refresh(),60_000);return ()=>window.clearInterval(id);},[router]);
  return <div className="control-forms">
    <section className="control-panel"><div className="control-panel-header"><span className={'control-icon '+(settings.mobile_enabled?'success':'danger')}><Power size={22}/></span><div><h2>Kontrol akses global</h2><p>Matikan atau aktifkan aplikasi mobile untuk seluruh pengguna.</p></div></div>
@@ -47,6 +49,20 @@ export default function PlatformControls({settings,tenants}:{settings:Setting;te
       <label className="field">Isi pesan<textarea name="body" maxLength={1000} rows={4} required placeholder="Tulis informasi yang ingin disampaikan kepada pengguna..."/><small>Pesan akan tampil sebagai push notification dan masuk ke menu Pemberitahuan.</small></label>
       <div className="control-warning"><Users size={18}/><p>Jika instansi dan role dibiarkan “Semua”, pesan dikirim ke seluruh perangkat aktif yang terdaftar.</p></div>
       <Notice state={messageState}/><button className="button primary" type="submit" disabled={messagePending}><Send size={17}/>{messagePending?'Mengirim…':'Kirim pesan'}</button>
+    </form>
+   </section>
+
+   <section className="control-panel control-panel-wide"><div className="control-panel-header"><span className="control-icon success"><ImagePlus size={22}/></span><div><h2>Poster beranda mobile</h2><p>Publikasikan poster global yang tampil halus setelah pengguna login dan masuk ke Beranda.</p></div></div>
+    <form action={submitPoster} className="control-form">
+      {settings.poster_enabled&&settings.poster_url&&<div className="poster-admin-preview"><img src={settings.poster_url} alt="Poster aktif"/><div><b>Poster aktif</b><p>{settings.poster_title||'Tanpa judul'}</p>{settings.poster_updated_at&&<small>Terakhir diperbarui {new Intl.DateTimeFormat('id-ID',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Jakarta'}).format(new Date(settings.poster_updated_at))} WIB</small>}</div></div>}
+      <div className="form-grid">
+        <label className="field">Gambar poster<input name="poster" type="file" accept="image/jpeg,image/png,image/webp"/><small>JPG, PNG, atau WebP. Maksimal 4 MB. Jika poster sudah ada, file boleh dikosongkan untuk mengubah teks saja.</small></label>
+        <label className="field">Judul poster<input name="title" maxLength={180} defaultValue={settings.poster_title||''} placeholder="Contoh: Penerimaan santri baru"/></label>
+      </div>
+      <label className="field">Keterangan poster<textarea name="message" maxLength={1000} rows={3} defaultValue={settings.poster_message||''} placeholder="Keterangan singkat yang tampil di bawah poster pada aplikasi mobile."/></label>
+      <div className="control-warning"><Users size={18}/><p>Di Flutter, poster tampil sekali pada setiap sesi aplikasi. Pengguna dapat mencentang “Jangan tampilkan lagi hari ini”; poster akan muncul kembali besok atau segera jika Anda mengunggah poster baru.</p></div>
+      <Notice state={posterState}/>
+      <div className="control-form-actions"><button className="button primary" type="submit" name="operation" value="save" disabled={posterPending}><ImagePlus size={17}/>{posterPending?'Menyimpan…':settings.poster_enabled?'Perbarui poster':'Publikasikan poster'}</button><button className="button secondary" type="submit" name="operation" value="clear" formNoValidate disabled={posterPending||!settings.poster_enabled}><Trash2 size={17}/> Hapus poster</button></div>
     </form>
    </section>
 

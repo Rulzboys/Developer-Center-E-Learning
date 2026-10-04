@@ -254,6 +254,74 @@ export async function sendPlatformMessageAction(_:ActionResult,form:FormData):Pr
  }
 }
 
+
+export async function savePlatformPosterAction(_:ActionResult,form:FormData):Promise<ActionResult>{
+ await requireDeveloper();
+ try{
+  const operation=read(form,'operation')||'save';
+  if(operation!=='save'&&operation!=='clear')throw new Error('Operasi poster tidak dikenal.');
+  const admin=adminClient();
+  const {data:current,error:loadError}=await admin.from('platform_settings')
+   .select('poster_path,poster_url,poster_title,poster_message').eq('id',true).single();
+  if(loadError||!current)throw new Error('Pengaturan platform belum tersedia.');
+  const client=await sessionClient();
+
+  if(operation==='clear'){
+   const {error}=await client.rpc('set_platform_poster',{
+    p_action:'poster_clear',p_path:null,p_url:null,p_title:'',p_message:''
+   });
+   if(error)throw new Error(error.message);
+   if(current.poster_path)await admin.storage.from('platform-posters').remove([String(current.poster_path)]);
+   revalidatePath('/kontrol-aplikasi');revalidatePath('/dashboard');
+   return success('Poster dinonaktifkan dan dihapus dari tampilan aplikasi.');
+  }
+
+  const title=z.string().max(180).parse(read(form,'title'));
+  const message=z.string().max(1000).parse(read(form,'message'));
+  const rawFile=form.get('poster');
+  const file=rawFile instanceof File&&rawFile.size>0?rawFile:null;
+  let posterPath=String(current.poster_path||'');
+  let posterUrl=String(current.poster_url||'');
+  let uploadedPath:string|null=null;
+
+  if(file){
+   if(file.size>4*1024*1024)throw new Error('Ukuran poster maksimal 4 MB.');
+   const allowed:Record<string,string>={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
+   const ext=allowed[file.type];
+   if(!ext)throw new Error('Format poster harus JPG, PNG, atau WebP.');
+   uploadedPath=`poster/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+   const bytes=await file.arrayBuffer();
+   const {error:uploadError}=await admin.storage.from('platform-posters').upload(uploadedPath,bytes,{
+    contentType:file.type,cacheControl:'3600',upsert:false
+   });
+   if(uploadError)throw new Error(`Upload poster gagal: ${uploadError.message}`);
+   posterPath=uploadedPath;
+   posterUrl=admin.storage.from('platform-posters').getPublicUrl(uploadedPath).data.publicUrl;
+  }
+
+  if(!posterPath||!posterUrl){
+   throw new Error('Pilih gambar poster terlebih dahulu.');
+  }
+
+  const {error}=await client.rpc('set_platform_poster',{
+   p_action:'poster_update',p_path:posterPath,p_url:posterUrl,p_title:title,p_message:message
+  });
+  if(error){
+   if(uploadedPath)await admin.storage.from('platform-posters').remove([uploadedPath]);
+   throw new Error(error.message);
+  }
+
+  if(uploadedPath&&current.poster_path&&current.poster_path!==uploadedPath){
+   await admin.storage.from('platform-posters').remove([String(current.poster_path)]);
+  }
+  revalidatePath('/kontrol-aplikasi');revalidatePath('/dashboard');
+  return success(file?'Poster baru berhasil dipublikasikan.':'Informasi poster berhasil diperbarui.');
+ }catch(error){
+  if(error instanceof z.ZodError)return {ok:false,message:error.issues[0]?.message||'Data poster tidak valid.'};
+  return fail(error);
+ }
+}
+
 const featureScopeSchema=z.object({
  featureKey:z.string().regex(/^[a-z][a-z0-9_]{1,60}$/),
  scopeType:z.enum(['global','tenant','role','tenant_role']),
