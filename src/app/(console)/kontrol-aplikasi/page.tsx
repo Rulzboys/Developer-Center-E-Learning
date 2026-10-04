@@ -57,7 +57,7 @@ export default async function ApplicationControl(){
    mobile_enabled:settings!.mobile_enabled,maintenance_message:settings!.maintenance_message,maintenance_starts_at:settings!.maintenance_starts_at,maintenance_ends_at:settings!.maintenance_ends_at,
    read_only:settings!.read_only??false,minimum_app_version:settings!.minimum_app_version??'1.0.0',latest_app_version:settings!.latest_app_version??'1.0.0',force_update:settings!.force_update??false,
    update_message:settings!.update_message??'Versi aplikasi yang Anda gunakan sudah terlalu lama. Silakan perbarui aplikasi.',update_url:settings!.update_url??'',
-  }}/>} 
+  }} tenants={tenants}/>} 
   {v4Ready&&<PlatformFeatureControls features={features} flags={flags} tenants={tenants}/>} 
 
   <section className="surface control-audit"><div className="surface-heading"><div><h2><ScrollText size={20}/> Riwayat kontrol platform</h2><p>Perubahan status, jadwal, runtime policy, dan feature flag tercatat untuk audit.</p></div></div>

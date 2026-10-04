@@ -218,15 +218,40 @@ export async function scheduleMaintenanceAction(_:ActionResult,form:FormData):Pr
   if(error)throw new Error(error.message);
   revalidatePath('/kontrol-aplikasi');revalidatePath('/dashboard');
   const fmt=(iso:string|null)=>iso?new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'medium',timeStyle:'short'}).format(new Date(iso)):'';
-  const base=op==='clear'?'Jadwal maintenance dibatalkan.':'Jadwal maintenance disimpan.';
+  const base=op==='clear'?'Jadwal maintenance dihapus.':'Jadwal maintenance disimpan.';
   const pushWarning=await sendPushEvent({type:'platform',platform:{
    title:op==='clear'?'Jadwal maintenance dibatalkan':'Maintenance terjadwal',
-   body:op==='clear'?'Jadwal maintenance sebelumnya telah dibatalkan.':`${message} Mulai ${fmt(start)}${end?` sampai ${fmt(end)}`:''}.`,
+   body:op==='clear'?'Jadwal maintenance sebelumnya telah dibatalkan oleh pengelola.':`${message} Mulai ${fmt(start)}${end?` sampai ${fmt(end)}`:''}.`,
    route:'/notifications',category:'maintenance',
    dedupe_key:op==='clear'?`maintenance-clear:${crypto.randomUUID()}`:`maintenance:${start}`
   }});
   return success(withPushStatus(base,pushWarning));
  }catch(error){return fail(error);}
+}
+
+
+export async function sendPlatformMessageAction(_:ActionResult,form:FormData):Promise<ActionResult>{
+ await requireDeveloper();
+ try{
+  const title=z.string().min(1,'Judul pesan wajib diisi.').max(180).parse(read(form,'title'));
+  const body=z.string().min(1,'Isi pesan wajib diisi.').max(1000).parse(read(form,'body'));
+  const tenantRaw=read(form,'tenant_id');
+  const roleRaw=read(form,'role');
+  const tenantId=tenantRaw?z.string().uuid('Instansi tidak valid.').parse(tenantRaw):null;
+  const role=roleRaw?z.enum(['developer','leader','admin','teacher','student']).parse(roleRaw):null;
+  if(tenantId&&role==='developer')throw new Error('Role Developer tidak terikat ke instansi. Pilih Semua instansi untuk target Developer.');
+  const pushWarning=await sendPushEvent({type:'platform',platform:{
+   title,body,route:'/notifications',category:'message',tenant_id:tenantId,role,
+   dedupe_key:`developer-message:${crypto.randomUUID()}`
+  }});
+  revalidatePath('/kontrol-aplikasi');
+  return success(pushWarning
+   ?`Pesan tersimpan di pusat pemberitahuan, tetapi pengiriman push perlu diperiksa: ${pushWarning}`
+   :'Pesan berhasil dikirim ke pengguna yang dipilih.');
+ }catch(error){
+  if(error instanceof z.ZodError)return {ok:false,message:error.issues[0]?.message||'Pesan tidak valid.'};
+  return fail(error);
+ }
 }
 
 const featureScopeSchema=z.object({
