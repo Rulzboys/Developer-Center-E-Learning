@@ -9,9 +9,28 @@ type Setting={
  mobile_enabled:boolean;maintenance_message:string;maintenance_starts_at:string|null;maintenance_ends_at:string|null;
  read_only:boolean;minimum_app_version:string;latest_app_version:string;force_update:boolean;update_message:string;update_url:string;
  poster_enabled:boolean;poster_url:string;poster_title:string;poster_message:string;poster_updated_at:string|null;
- theme_background_color:string;theme_text_primary_color:string;theme_text_secondary_color:string;theme_updated_at:string|null;
+ theme_preset:string;theme_primary_color:string;theme_accent_color:string;theme_background_color:string;theme_surface_color:string;
+ theme_text_primary_color:string;theme_text_secondary_color:string;theme_border_color:string;theme_updated_at:string|null;
 };
 type TenantOption={id:string;name:string;code:string};
+
+type ThemeValues={
+ preset:string;primary_color:string;accent_color:string;background_color:string;surface_color:string;
+ text_primary_color:string;text_secondary_color:string;border_color:string;
+};
+const THEME_PRESETS:Record<string,{label:string;description:string;values:Omit<ThemeValues,'preset'>}>={
+ education_green:{label:'Hijau Pendidikan',description:'Hijau utama yang tenang dengan aksen biru untuk aplikasi pendidikan.',values:{primary_color:'#176B4D',accent_color:'#3B82F6',background_color:'#F6F8F7',surface_color:'#FFFFFF',text_primary_color:'#17221E',text_secondary_color:'#6B7772',border_color:'#DFE6E2'}},
+ academic_blue:{label:'Biru Akademik',description:'Biru profesional dengan aksen teal, cocok untuk tampilan akademik modern.',values:{primary_color:'#2563EB',accent_color:'#14B8A6',background_color:'#F6F8FC',surface_color:'#FFFFFF',text_primary_color:'#172033',text_secondary_color:'#667085',border_color:'#DCE3EE'}},
+ emerald_modern:{label:'Emerald Modern',description:'Emerald yang lebih segar dengan aksen amber yang tetap profesional.',values:{primary_color:'#0F766E',accent_color:'#D97706',background_color:'#F5F9F8',surface_color:'#FFFFFF',text_primary_color:'#132522',text_secondary_color:'#657771',border_color:'#D9E7E2'}},
+};
+const DEFAULT_THEME:ThemeValues={preset:'education_green',...THEME_PRESETS.education_green.values};
+function normalizeTheme(settings:Setting):ThemeValues{return {
+ preset:settings.theme_preset||'custom',primary_color:settings.theme_primary_color||DEFAULT_THEME.primary_color,accent_color:settings.theme_accent_color||DEFAULT_THEME.accent_color,
+ background_color:settings.theme_background_color||DEFAULT_THEME.background_color,surface_color:settings.theme_surface_color||DEFAULT_THEME.surface_color,
+ text_primary_color:settings.theme_text_primary_color||DEFAULT_THEME.text_primary_color,text_secondary_color:settings.theme_text_secondary_color||DEFAULT_THEME.text_secondary_color,
+ border_color:settings.theme_border_color||DEFAULT_THEME.border_color,
+};}
+
 function jakartaLocal(value:string|null){if(!value)return '';return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(value)).replace(' ','T');}
 function Notice({state}:{state:{ok:boolean;message:string}}){return state.message?<div role="status" className={'form-alert '+(state.ok?'ok':'error')}>{state.message}</div>:null;}
 function Toggle({value,onChange,label}:{value:boolean;onChange:(next:boolean)=>void;label:string}){return <button type="button" className={'switch '+(value?'on':'')} role="switch" aria-checked={value} aria-label={label} onClick={()=>onChange(!value)}><span>{value?'✓':''}</span></button>;}
@@ -29,16 +48,15 @@ export default function PlatformControls({settings,tenants}:{settings:Setting;te
  const [messageState,submitMessage,messagePending]=useActionState(sendPlatformMessageAction,initialAction);
  const [posterState,submitPoster,posterPending]=useActionState(savePlatformPosterAction,initialAction);
  const [themeState,submitTheme,themePending]=useActionState(savePlatformThemeAction,initialAction);
- const [theme,setTheme]=useState({
-  background_color:settings.theme_background_color||'#F7F9F7',
-  text_primary_color:settings.theme_text_primary_color||'#17231F',
-  text_secondary_color:settings.theme_text_secondary_color||'#6D7D76',
- });
+ const [theme,setTheme]=useState<ThemeValues>(()=>normalizeTheme(settings));
+ const [themePreviewExpanded,setThemePreviewExpanded]=useState(false);
  const nextEnabled=!settings.mobile_enabled;
  const expected=nextEnabled?'AKTIFKAN APLIKASI':'MATIKAN APLIKASI';
  useEffect(()=>{if(state.ok||scheduleState.ok||runtimeState.ok||messageState.ok||posterState.ok||themeState.ok){setConfirmation('');router.refresh();}},[state,scheduleState,runtimeState,messageState,posterState,themeState,router]);
  useEffect(()=>{const id=window.setInterval(()=>router.refresh(),60_000);return ()=>window.clearInterval(id);},[router]);
- useEffect(()=>{setTheme({background_color:settings.theme_background_color||'#F7F9F7',text_primary_color:settings.theme_text_primary_color||'#17231F',text_secondary_color:settings.theme_text_secondary_color||'#6D7D76'});},[settings.theme_background_color,settings.theme_text_primary_color,settings.theme_text_secondary_color]);
+ useEffect(()=>{setTheme(normalizeTheme(settings));},[settings.theme_preset,settings.theme_primary_color,settings.theme_accent_color,settings.theme_background_color,settings.theme_surface_color,settings.theme_text_primary_color,settings.theme_text_secondary_color,settings.theme_border_color]);
+ const choosePreset=(preset:string)=>{const config=THEME_PRESETS[preset];if(!config){setTheme(current=>({...current,preset:'custom'}));return;}setTheme({preset,...config.values});};
+ const changeThemeColor=(key:keyof Omit<ThemeValues,'preset'>,value:string)=>setTheme(current=>({...current,preset:'custom',[key]:value}));
  return <div className="control-forms">
    <section className="control-panel"><div className="control-panel-header"><span className={'control-icon '+(settings.mobile_enabled?'success':'danger')}><Power size={22}/></span><div><h2>Kontrol akses global</h2><p>Matikan atau aktifkan aplikasi mobile untuk seluruh pengguna.</p></div></div>
     <div className={'current-state '+(settings.mobile_enabled?'enabled':'disabled')}><span className="current-state-dot"/><div><b>{settings.mobile_enabled?'Sakelar global aktif':'Sakelar global nonaktif'}</b><p>{settings.mobile_enabled?'Status efektif juga mengikuti jadwal maintenance.':'Semua pengguna mobile akan diblokir pada pemeriksaan status berikutnya.'}</p></div></div>
@@ -75,22 +93,50 @@ export default function PlatformControls({settings,tenants}:{settings:Setting;te
     </form>
    </section>
 
-   <section className="control-panel control-panel-wide"><div className="control-panel-header"><span className="control-icon purple"><Palette size={22}/></span><div><h2>Tema aplikasi mobile</h2><p>Atur warna background dan tulisan Flutter tanpa build ulang aplikasi.</p></div></div>
+   <section className="control-panel control-panel-wide theme-control-panel"><div className="control-panel-header"><span className="control-icon purple"><Palette size={22}/></span><div><h2>Tema aplikasi mobile</h2><p>Atur identitas warna Flutter tanpa build ulang aplikasi. Ukuran, radius, dan spacing tetap dikunci agar konsisten.</p></div></div>
     <form action={submitTheme} className="control-form">
-      <div className="theme-editor-grid">
-        <div className="theme-editor-fields">
-          <ThemeColorField label="Background aplikasi" name="background_color" value={theme.background_color} onChange={value=>setTheme(current=>({...current,background_color:value}))}/>
-          <ThemeColorField label="Tulisan utama" name="text_primary_color" value={theme.text_primary_color} onChange={value=>setTheme(current=>({...current,text_primary_color:value}))}/>
-          <ThemeColorField label="Tulisan sekunder" name="text_secondary_color" value={theme.text_secondary_color} onChange={value=>setTheme(current=>({...current,text_secondary_color:value}))}/>
-        </div>
-        <div className="theme-mobile-preview" style={{background:theme.background_color,color:theme.text_primary_color}}>
-          <div className="theme-preview-header"><span>Preview mobile</span><b>E-Learning</b></div>
-          <div className="theme-preview-card"><strong>Informasi akademik</strong><p style={{color:theme.text_secondary_color}}>Warna ini diterapkan pada subtitle, keterangan, dan teks sekunder.</p><button type="button">Tombol utama</button></div>
+      <input type="hidden" name="preset" value={theme.preset}/>
+      <div className="theme-preset-block">
+        <div className="theme-section-heading"><div><b>Preset tema</b><p>Pilih tema siap pakai atau gunakan Custom untuk mengatur seluruh token warna.</p></div><span className="theme-current-badge">{theme.preset==='custom'?'Custom':THEME_PRESETS[theme.preset]?.label||'Custom'}</span></div>
+        <div className="theme-preset-grid">
+          {Object.entries(THEME_PRESETS).map(([key,preset])=><button key={key} type="button" className={'theme-preset-card '+(theme.preset===key?'active':'')} onClick={()=>choosePreset(key)} aria-pressed={theme.preset===key}>
+            <span className="theme-preset-radio"><i/></span><span className="theme-preset-swatches"><i style={{background:preset.values.primary_color}}/><i style={{background:preset.values.accent_color}}/><i style={{background:preset.values.background_color}}/></span><span><b>{preset.label}</b><small>{preset.description}</small></span>
+          </button>)}
+          <button type="button" className={'theme-preset-card '+(theme.preset==='custom'?'active':'')} onClick={()=>choosePreset('custom')} aria-pressed={theme.preset==='custom'}>
+            <span className="theme-preset-radio"><i/></span><span className="theme-preset-custom-icon"><Palette size={18}/></span><span><b>Custom</b><small>Atur warna utama, aksen, background, surface, tulisan, dan border secara manual.</small></span>
+          </button>
         </div>
       </div>
-      <p className="helper">Ukuran card, border, spacing, dan warna status tetap dikunci oleh design system agar UI tetap konsisten. Flutter menyimpan tema terakhir untuk mode offline dan mengecek perubahan secara berkala.</p>
+
+      <div className="theme-editor-grid theme-editor-grid-expanded">
+        <div className="theme-editor-fields">
+          <div className="theme-token-group"><div className="theme-token-title"><b>Brand & aksen</b><small>Warna identitas utama aplikasi.</small></div>
+            <ThemeColorField label="Warna Utama" name="primary_color" value={theme.primary_color} onChange={value=>changeThemeColor('primary_color',value)}/>
+            <ThemeColorField label="Warna Aksen" name="accent_color" value={theme.accent_color} onChange={value=>changeThemeColor('accent_color',value)}/>
+          </div>
+          <div className="theme-token-group"><div className="theme-token-title"><b>Permukaan</b><small>Background halaman, kartu, dialog, dan garis pemisah.</small></div>
+            <ThemeColorField label="Background" name="background_color" value={theme.background_color} onChange={value=>changeThemeColor('background_color',value)}/>
+            <ThemeColorField label="Card / Surface" name="surface_color" value={theme.surface_color} onChange={value=>changeThemeColor('surface_color',value)}/>
+            <ThemeColorField label="Border" name="border_color" value={theme.border_color} onChange={value=>changeThemeColor('border_color',value)}/>
+          </div>
+          <div className="theme-token-group"><div className="theme-token-title"><b>Tipografi</b><small>Warna teks utama dan keterangan sekunder.</small></div>
+            <ThemeColorField label="Tulisan Utama" name="text_primary_color" value={theme.text_primary_color} onChange={value=>changeThemeColor('text_primary_color',value)}/>
+            <ThemeColorField label="Tulisan Sekunder" name="text_secondary_color" value={theme.text_secondary_color} onChange={value=>changeThemeColor('text_secondary_color',value)}/>
+          </div>
+        </div>
+        <div className={'theme-mobile-preview '+(themePreviewExpanded?'expanded':'')} style={{background:theme.background_color,color:theme.text_primary_color,borderColor:theme.border_color}}>
+          <div className="theme-preview-header"><span>Preview mobile</span><b style={{color:theme.primary_color}}>E-Learning</b></div>
+          <div className="theme-preview-phone" style={{background:theme.background_color,borderColor:theme.border_color}}>
+            <div className="theme-preview-appbar" style={{background:theme.surface_color,borderColor:theme.border_color}}><span style={{background:theme.primary_color}}>E</span><div><b>Selamat datang</b><small style={{color:theme.text_secondary_color}}>Ringkasan kegiatan belajar hari ini</small></div><i style={{background:theme.accent_color}}/></div>
+            <div className="theme-preview-card" style={{background:theme.surface_color,borderColor:theme.border_color}}><div className="theme-preview-card-title"><strong>Informasi akademik</strong><span style={{color:theme.primary_color}}>Lihat semua</span></div><p style={{color:theme.text_secondary_color}}>Warna surface, border, tulisan dan aksen langsung mengikuti tema yang dipilih.</p><div className="theme-preview-actions"><button type="button" style={{background:theme.primary_color}}>Tombol utama</button><button type="button" className="accent" style={{color:theme.accent_color,borderColor:theme.accent_color,background:theme.surface_color}}>Aksen</button></div></div>
+            <div className="theme-preview-mini-grid"><div style={{background:theme.surface_color,borderColor:theme.border_color}}><i style={{background:theme.primary_color}}/><small style={{color:theme.text_secondary_color}}>Tugas</small></div><div style={{background:theme.surface_color,borderColor:theme.border_color}}><i style={{background:theme.accent_color}}/><small style={{color:theme.text_secondary_color}}>Jadwal</small></div><div style={{background:theme.surface_color,borderColor:theme.border_color}}><i style={{background:'#C9782A'}}/><small style={{color:theme.text_secondary_color}}>Nilai</small></div></div>
+          </div>
+        </div>
+      </div>
+      <div className="theme-contrast-note"><ShieldAlert size={17}/><p>Pastikan tulisan tetap terbaca terhadap background dan card. Sistem database menolak warna teks utama yang sama persis dengan background atau surface.</p></div>
+      <p className="helper">Flutter menyimpan tema terakhir untuk mode offline dan memeriksa perubahan secara berkala. Warna status sukses, warning, dan error tetap dikunci agar maknanya konsisten.</p>
       <Notice state={themeState}/>
-      <div className="control-form-actions"><button className="button primary" type="submit" name="operation" value="save" disabled={themePending}><Save size={17}/>{themePending?'Menyimpan…':'Simpan tema'}</button><button className="button secondary" type="submit" name="operation" value="reset" formNoValidate disabled={themePending}><Trash2 size={17}/> Kembalikan default</button></div>
+      <div className="control-form-actions theme-actions"><button className="button secondary" type="button" onClick={()=>setThemePreviewExpanded(value=>!value)}><ExternalLink size={17}/>{themePreviewExpanded?'Tutup preview':'Preview'}</button><button className="button primary" type="submit" name="operation" value="save" disabled={themePending}><Save size={17}/>{themePending?'Menyimpan…':'Simpan tema'}</button><button className="button secondary" type="submit" name="operation" value="reset" formNoValidate disabled={themePending}><Trash2 size={17}/> Kembalikan default</button></div>
     </form>
    </section>
 

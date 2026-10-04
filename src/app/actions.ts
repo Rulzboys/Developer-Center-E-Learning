@@ -256,25 +256,36 @@ export async function sendPlatformMessageAction(_:ActionResult,form:FormData):Pr
 
 
 const themeHex=z.string().regex(/^#[0-9A-Fa-f]{6}$/,'Gunakan warna HEX dengan format #RRGGBB.');
+const themePreset=z.enum(['education_green','academic_blue','emerald_modern','custom']);
 export async function savePlatformThemeAction(_:ActionResult,form:FormData):Promise<ActionResult>{
  await requireDeveloper();
  try{
   const operation=read(form,'operation')||'save';
   if(operation!=='save'&&operation!=='reset')throw new Error('Operasi tema tidak dikenal.');
-  const defaults={background_color:'#F7F9F7',text_primary_color:'#17231F',text_secondary_color:'#6D7D76'};
+  const defaults={preset:'education_green' as const,primary_color:'#176B4D',accent_color:'#3B82F6',background_color:'#F6F8F7',surface_color:'#FFFFFF',text_primary_color:'#17221E',text_secondary_color:'#6B7772',border_color:'#DFE6E2'};
   const values=operation==='reset'?defaults:{
+   preset:themePreset.parse(read(form,'preset')||'custom'),
+   primary_color:themeHex.parse(read(form,'primary_color').toUpperCase()),
+   accent_color:themeHex.parse(read(form,'accent_color').toUpperCase()),
    background_color:themeHex.parse(read(form,'background_color').toUpperCase()),
+   surface_color:themeHex.parse(read(form,'surface_color').toUpperCase()),
    text_primary_color:themeHex.parse(read(form,'text_primary_color').toUpperCase()),
    text_secondary_color:themeHex.parse(read(form,'text_secondary_color').toUpperCase()),
+   border_color:themeHex.parse(read(form,'border_color').toUpperCase()),
   };
   const {error}=await (await sessionClient()).rpc('set_platform_theme',{
+   p_preset:values.preset,
+   p_primary_color:values.primary_color,
+   p_accent_color:values.accent_color,
    p_background_color:values.background_color,
+   p_surface_color:values.surface_color,
    p_text_primary_color:values.text_primary_color,
    p_text_secondary_color:values.text_secondary_color,
+   p_border_color:values.border_color,
   });
   if(error)throw new Error(error.message);
   revalidatePath('/kontrol-aplikasi');revalidatePath('/dashboard');
-  return success(operation==='reset'?'Tema mobile dikembalikan ke warna default.':'Warna aplikasi mobile berhasil diperbarui.');
+  return success(operation==='reset'?'Tema mobile dikembalikan ke preset Hijau Pendidikan.':'Tema aplikasi mobile berhasil diperbarui.');
  }catch(error){
   if(error instanceof z.ZodError)return {ok:false,message:error.issues[0]?.message||'Warna tema tidak valid.'};
   return fail(error);
