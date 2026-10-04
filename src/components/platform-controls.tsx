@@ -1,7 +1,7 @@
 'use client';
 import {useActionState,useEffect,useState} from 'react';
-import {AlertTriangle,CalendarClock,Download,ExternalLink,ImagePlus,LockKeyhole,MessageSquareText,Power,Save,Send,ShieldAlert,Trash2,Users} from 'lucide-react';
-import {savePlatformPosterAction,saveRuntimePolicyAction,scheduleMaintenanceAction,sendPlatformMessageAction,setMobileAccessAction} from '@/app/actions';
+import {AlertTriangle,CalendarClock,Download,ExternalLink,ImagePlus,LockKeyhole,MessageSquareText,Palette,Power,Save,Send,ShieldAlert,Trash2,Users} from 'lucide-react';
+import {savePlatformPosterAction,savePlatformThemeAction,saveRuntimePolicyAction,scheduleMaintenanceAction,sendPlatformMessageAction,setMobileAccessAction} from '@/app/actions';
 import {initialAction} from '@/lib/types';
 import {useRouter} from 'next/navigation';
 
@@ -9,11 +9,13 @@ type Setting={
  mobile_enabled:boolean;maintenance_message:string;maintenance_starts_at:string|null;maintenance_ends_at:string|null;
  read_only:boolean;minimum_app_version:string;latest_app_version:string;force_update:boolean;update_message:string;update_url:string;
  poster_enabled:boolean;poster_url:string;poster_title:string;poster_message:string;poster_updated_at:string|null;
+ theme_background_color:string;theme_text_primary_color:string;theme_text_secondary_color:string;theme_updated_at:string|null;
 };
 type TenantOption={id:string;name:string;code:string};
 function jakartaLocal(value:string|null){if(!value)return '';return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(value)).replace(' ','T');}
 function Notice({state}:{state:{ok:boolean;message:string}}){return state.message?<div role="status" className={'form-alert '+(state.ok?'ok':'error')}>{state.message}</div>:null;}
 function Toggle({value,onChange,label}:{value:boolean;onChange:(next:boolean)=>void;label:string}){return <button type="button" className={'switch '+(value?'on':'')} role="switch" aria-checked={value} aria-label={label} onClick={()=>onChange(!value)}><span>{value?'✓':''}</span></button>;}
+function ThemeColorField({label,name,value,onChange}:{label:string;name:string;value:string;onChange:(value:string)=>void}){return <label className="theme-color-field"><span>{label}</span><div className="theme-color-input"><input aria-label={label+' color picker'} type="color" value={value} onChange={e=>onChange(e.target.value.toUpperCase())}/><input name={name} value={value} onChange={e=>onChange(e.target.value.toUpperCase())} pattern="#[0-9A-Fa-f]{6}" maxLength={7} required/></div></label>;}
 
 export default function PlatformControls({settings,tenants}:{settings:Setting;tenants:TenantOption[]}){
  const router=useRouter();
@@ -26,10 +28,17 @@ export default function PlatformControls({settings,tenants}:{settings:Setting;te
  const [runtimeState,submitRuntime,runtimePending]=useActionState(saveRuntimePolicyAction,initialAction);
  const [messageState,submitMessage,messagePending]=useActionState(sendPlatformMessageAction,initialAction);
  const [posterState,submitPoster,posterPending]=useActionState(savePlatformPosterAction,initialAction);
+ const [themeState,submitTheme,themePending]=useActionState(savePlatformThemeAction,initialAction);
+ const [theme,setTheme]=useState({
+  background_color:settings.theme_background_color||'#F7F9F7',
+  text_primary_color:settings.theme_text_primary_color||'#17231F',
+  text_secondary_color:settings.theme_text_secondary_color||'#6D7D76',
+ });
  const nextEnabled=!settings.mobile_enabled;
  const expected=nextEnabled?'AKTIFKAN APLIKASI':'MATIKAN APLIKASI';
- useEffect(()=>{if(state.ok||scheduleState.ok||runtimeState.ok||messageState.ok||posterState.ok){setConfirmation('');router.refresh();}},[state,scheduleState,runtimeState,messageState,posterState,router]);
+ useEffect(()=>{if(state.ok||scheduleState.ok||runtimeState.ok||messageState.ok||posterState.ok||themeState.ok){setConfirmation('');router.refresh();}},[state,scheduleState,runtimeState,messageState,posterState,themeState,router]);
  useEffect(()=>{const id=window.setInterval(()=>router.refresh(),60_000);return ()=>window.clearInterval(id);},[router]);
+ useEffect(()=>{setTheme({background_color:settings.theme_background_color||'#F7F9F7',text_primary_color:settings.theme_text_primary_color||'#17231F',text_secondary_color:settings.theme_text_secondary_color||'#6D7D76'});},[settings.theme_background_color,settings.theme_text_primary_color,settings.theme_text_secondary_color]);
  return <div className="control-forms">
    <section className="control-panel"><div className="control-panel-header"><span className={'control-icon '+(settings.mobile_enabled?'success':'danger')}><Power size={22}/></span><div><h2>Kontrol akses global</h2><p>Matikan atau aktifkan aplikasi mobile untuk seluruh pengguna.</p></div></div>
     <div className={'current-state '+(settings.mobile_enabled?'enabled':'disabled')}><span className="current-state-dot"/><div><b>{settings.mobile_enabled?'Sakelar global aktif':'Sakelar global nonaktif'}</b><p>{settings.mobile_enabled?'Status efektif juga mengikuti jadwal maintenance.':'Semua pengguna mobile akan diblokir pada pemeriksaan status berikutnya.'}</p></div></div>
@@ -63,6 +72,25 @@ export default function PlatformControls({settings,tenants}:{settings:Setting;te
       <div className="control-warning"><Users size={18}/><p>Di Flutter, poster tampil sekali pada setiap sesi aplikasi. Pengguna dapat mencentang “Jangan tampilkan lagi hari ini”; poster akan muncul kembali besok atau segera jika Anda mengunggah poster baru.</p></div>
       <Notice state={posterState}/>
       <div className="control-form-actions"><button className="button primary" type="submit" name="operation" value="save" disabled={posterPending}><ImagePlus size={17}/>{posterPending?'Menyimpan…':settings.poster_enabled?'Perbarui poster':'Publikasikan poster'}</button><button className="button secondary" type="submit" name="operation" value="clear" formNoValidate disabled={posterPending||!settings.poster_enabled}><Trash2 size={17}/> Hapus poster</button></div>
+    </form>
+   </section>
+
+   <section className="control-panel control-panel-wide"><div className="control-panel-header"><span className="control-icon purple"><Palette size={22}/></span><div><h2>Tema aplikasi mobile</h2><p>Atur warna background dan tulisan Flutter tanpa build ulang aplikasi.</p></div></div>
+    <form action={submitTheme} className="control-form">
+      <div className="theme-editor-grid">
+        <div className="theme-editor-fields">
+          <ThemeColorField label="Background aplikasi" name="background_color" value={theme.background_color} onChange={value=>setTheme(current=>({...current,background_color:value}))}/>
+          <ThemeColorField label="Tulisan utama" name="text_primary_color" value={theme.text_primary_color} onChange={value=>setTheme(current=>({...current,text_primary_color:value}))}/>
+          <ThemeColorField label="Tulisan sekunder" name="text_secondary_color" value={theme.text_secondary_color} onChange={value=>setTheme(current=>({...current,text_secondary_color:value}))}/>
+        </div>
+        <div className="theme-mobile-preview" style={{background:theme.background_color,color:theme.text_primary_color}}>
+          <div className="theme-preview-header"><span>Preview mobile</span><b>E-Learning</b></div>
+          <div className="theme-preview-card"><strong>Informasi akademik</strong><p style={{color:theme.text_secondary_color}}>Warna ini diterapkan pada subtitle, keterangan, dan teks sekunder.</p><button type="button">Tombol utama</button></div>
+        </div>
+      </div>
+      <p className="helper">Ukuran card, border, spacing, dan warna status tetap dikunci oleh design system agar UI tetap konsisten. Flutter menyimpan tema terakhir untuk mode offline dan mengecek perubahan secara berkala.</p>
+      <Notice state={themeState}/>
+      <div className="control-form-actions"><button className="button primary" type="submit" name="operation" value="save" disabled={themePending}><Save size={17}/>{themePending?'Menyimpan…':'Simpan tema'}</button><button className="button secondary" type="submit" name="operation" value="reset" formNoValidate disabled={themePending}><Trash2 size={17}/> Kembalikan default</button></div>
     </form>
    </section>
 

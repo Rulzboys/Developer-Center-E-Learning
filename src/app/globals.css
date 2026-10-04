@@ -202,3 +202,16 @@ html[data-sidebar="closed"] .sidebar{display:none}
 
 /* Production V8 - poster control */
 .poster-admin-preview{display:flex;gap:16px;align-items:center;padding:14px;border:1px solid var(--line,#e5e9e7);border-radius:16px;background:#f8faf9}.poster-admin-preview img{width:92px;height:116px;object-fit:cover;border-radius:12px;border:1px solid #dce5df;background:#fff}.poster-admin-preview div{min-width:0}.poster-admin-preview b{display:block;margin-bottom:4px}.poster-admin-preview p{margin:0 0 6px;color:var(--muted,#67756f)}.poster-admin-preview small{color:var(--muted,#67756f)}
+
+/* Production V12 - dynamic mobile theme */
+.theme-editor-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:18px;align-items:stretch}
+.theme-editor-fields{display:grid;gap:12px}
+.theme-color-field{display:flex;flex-direction:column;gap:8px;font-size:11px;font-weight:800;color:#4b6078}
+.theme-color-input{display:grid;grid-template-columns:48px 1fr;gap:9px;align-items:center}
+.theme-color-input input[type=color]{width:48px;height:44px;padding:3px;border:1px solid #dfe6ef;border-radius:10px;background:#fff;cursor:pointer}
+.theme-color-input input[type=text],.theme-color-input input:not([type=color]){height:44px;border:1px solid #dfe6ef;border-radius:10px;padding:0 12px;background:#fff;color:#2d4059;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;font-weight:700;text-transform:uppercase;outline:none}
+.theme-color-input input:not([type=color]):focus{border-color:#7f9fe0;box-shadow:0 0 0 3px #edf2ff}
+.theme-mobile-preview{border:1px solid #dfe5e2;border-radius:18px;padding:16px;min-height:220px;box-shadow:0 8px 25px rgba(24,44,35,.05);transition:background .16s,color .16s}
+.theme-preview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.theme-preview-header span{font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;opacity:.55}.theme-preview-header b{font-size:14px}
+.theme-preview-card{background:#fff;border:1px solid #e0e7e3;border-radius:14px;padding:15px}.theme-preview-card strong{font-size:13px}.theme-preview-card p{font-size:10.5px;line-height:1.55;margin:7px 0 14px}.theme-preview-card button{border:0;border-radius:10px;background:#176b4d;color:#fff;height:38px;padding:0 14px;font-size:10px;font-weight:800;cursor:default}
+@media(max-width:800px){.theme-editor-grid{grid-template-columns:1fr}.theme-mobile-preview{min-height:190px}}
